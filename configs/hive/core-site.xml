@@ -1,0 +1,122 @@
+<?xml version="1.0"?>
+<configuration>
+    <!-- S3A FileSystem Configuration for MinIO -->
+    <property>
+        <name>fs.s3a.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+        <description>S3A filesystem implementation</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.endpoint</name>
+        <value>http://minio:9000</value>
+        <description>MinIO endpoint URL</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.access.key</name>
+        <value>admin</value>
+        <description>MinIO access key</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.secret.key</name>
+        <value>password123</value>
+        <description>MinIO secret key</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.path.style.access</name>
+        <value>true</value>
+        <description>Use path-style access for MinIO compatibility</description>
+    </property>
+    
+    <!-- S3A Connection Configuration -->
+    <property>
+        <name>fs.s3a.connection.ssl.enabled</name>
+        <value>false</value>
+        <description>Disable SSL for local MinIO</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.attempts.maximum</name>
+        <value>3</value>
+        <description>Maximum retry attempts</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.connection.establish.timeout</name>
+        <value>5000</value>
+        <description>Connection establish timeout in ms</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.connection.timeout</name>
+        <value>200000</value>
+        <description>Connection timeout in ms</description>
+    </property>
+    
+    <!-- Performance Optimization -->
+    <property>
+        <name>fs.s3a.multipart.size</name>
+        <value>104857600</value>
+        <description>Multipart upload size (100MB)</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.multipart.threshold</name>
+        <value>2147483647</value>
+        <description>Threshold for multipart upload (2GB)</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.fast.upload</name>
+        <value>true</value>
+        <description>Enable fast upload</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.block.size</name>
+        <value>134217728</value>
+        <description>S3A block size (128MB)</description>
+    </property>
+    
+    <!-- Thread Pool Configuration -->
+    <property>
+        <name>fs.s3a.threads.max</name>
+        <value>10</value>
+        <description>Maximum number of threads</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.connection.maximum</name>
+        <value>15</value>
+        <description>Maximum number of connections</description>
+    </property>
+    
+    <!-- Buffer Configuration -->
+    <property>
+        <name>fs.s3a.buffer.dir</name>
+        <value>/tmp</value>
+        <description>Buffer directory for temporary files</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.fast.upload.buffer</name>
+        <value>disk</value>
+        <description>Use disk buffering for uploads</description>
+    </property>
+    
+    <!-- Checksum Configuration -->
+    <property>
+        <name>fs.s3a.change.detection.mode</name>
+        <value>server</value>
+        <description>Change detection mode</description>
+    </property>
+    
+    <property>
+        <name>fs.s3a.change.detection.version.required</name>
+        <value>false</value>
+        <description>Version requirement for change detection</description>
+    </property>
+</configuration>

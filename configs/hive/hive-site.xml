@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<configuration>
+    <!-- Hive Metastore Database Configuration -->
+    <property>
+        <name>javax.jdo.option.ConnectionURL</name>
+        <value>jdbc:postgresql://metastore-db:5432/metastore</value>
+        <description>PostgreSQL JDBC connection URL</description>
+    </property>
+    
+    <property>
+        <name>javax.jdo.option.ConnectionDriverName</name>
+        <value>org.postgresql.Driver</value>
+        <description>PostgreSQL JDBC driver</description>
+    </property>
+    
+    <property>
+        <name>javax.jdo.option.ConnectionUserName</name>
+        <value>hive</value>
+        <description>Database username</description>
+    </property>
+    
+    <property>
+        <name>javax.jdo.option.ConnectionPassword</name>
+        <value>hive123</value>
+        <description>Database password</description>
+    </property>
+    
+    <!-- Hive Metastore Service Configuration -->
+    <property>
+        <name>hive.metastore.uris</name>
+        <value>thrift://hive-metastore:9083</value>
+        <description>Metastore Thrift URIs</description>
+    </property>
+    
+    <property>
+        <name>hive.metastore.warehouse.dir</name>
+        <value>s3a://warehouse/</value>
+        <description>Default warehouse location on MinIO</description>
+    </property>
+    
+    <!-- S3/MinIO Configuration -->
+    <property>
+        <name>hive.metastore.fshandler.threads</name>
+        <value>15</value>
+        <description>Number of threads for filesystem operations</description>
+    </property>
+    
+    <property>
+        <name>hive.metastore.client.connect.retry.delay</name>
+        <value>5s</value>
+        <description>Retry delay for metastore connections</description>
+    </property>
+    
+    <property>
+        <name>hive.metastore.client.socket.timeout</name>
+        <value>1800s</value>
+        <description>Socket timeout for metastore client</description>
+    </property>
+    
+    <!-- Performance Configuration -->
+    <property>
+        <name>hive.metastore.execute.setugi</name>
+        <value>false</value>
+        <description>Execute with user group information</description>
+    </property>
+    
+    <property>
+        <name>hive.metastore.event.db.notification.api.auth</name>
+        <value>false</value>
+        <description>Disable authentication for event notifications</description>
+    </property>
+    
+    <!-- Schema Validation -->
+    <property>
+        <name>hive.metastore.schema.verification</name>
+        <value>false</value>
+        <description>Skip schema verification for easier setup</description>
+    </property>
+    
+    <property>
+        <name>datanucleus.schema.autoCreateAll</name>
+        <value>true</value>
+        <description>Auto-create schema on startup</description>
+    </property>
+    
+    <property>
+        <name>datanucleus.fixedDatastore</name>
+        <value>false</value>
+        <description>Allow flexible datastore operations</description>
+    </property>
+</configuration>
