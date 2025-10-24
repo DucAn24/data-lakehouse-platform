@@ -5,3 +5,5 @@ pydantic
 pydantic-settings
 python-dotenv
 requests
+pandas
+psycopg2-binary
