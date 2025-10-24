@@ -1,0 +1,18 @@
+-- Debezium CDC Setup
+ALTER TABLE customers REPLICA IDENTITY FULL;
+ALTER TABLE sellers REPLICA IDENTITY FULL;
+ALTER TABLE products REPLICA IDENTITY FULL;
+ALTER TABLE orders REPLICA IDENTITY FULL;
+ALTER TABLE order_items REPLICA IDENTITY FULL;
+ALTER TABLE order_payments REPLICA IDENTITY FULL;
+ALTER TABLE order_reviews REPLICA IDENTITY FULL;
+ALTER TABLE geolocation REPLICA IDENTITY FULL;
+ALTER TABLE product_category_name_translation REPLICA IDENTITY FULL;
+
+-- Create publication for Debezium
+-- DROP PUBLICATION IF EXISTS dbz_publication CASCADE;
+CREATE PUBLICATION dbz_publication FOR ALL TABLES;
+
+-- Verify setup
+-- SELECT * FROM pg_publication;
+-- SELECT * FROM pg_stat_replication;
