@@ -28,10 +28,14 @@ help:
 	@echo "  make logs-streamlit - Show Streamlit logs"
 	@echo "  make logs-chatbot   - Show ChatBot (FastAPI + Streamlit) logs"
 	@echo "  make logs-api       - Show FastAPI logs"
+	@echo "  make logs-fastapi   - Show FastAPI logs (alias for logs-api)"
 	@echo "  make ps             - Show running services"
 	@echo ""
 	@echo "Data:"
 	@echo "  make init-data      - Initialize sample data"
+	@echo "  make load-ecommerce - Load Olist e-commerce data into PostgreSQL"
+	@echo "  make db-schema      - Create database schema only"
+	@echo "  make db-query       - Run sample queries against database"
 	@echo "  make create-buckets - Create MinIO buckets"
 	@echo ""
 	@echo "Development:"
@@ -136,6 +140,9 @@ logs-chatbot:
 logs-api:
 	docker-compose logs -f chatbot-api
 
+logs-fastapi:
+	docker-compose logs -f chatbot-api
+
 ps:
 	docker-compose ps
 
@@ -144,6 +151,35 @@ init-data:
 	@echo "📊 Initializing sample data..."
 	docker-compose exec postgres psql -U postgres -d ecommerce -f /docker-entrypoint-initdb.d/01-ecommerce-schema.sql
 	@echo "✅ Sample data initialized!"
+
+load-ecommerce:
+	@echo "📦 Loading Olist E-commerce data into PostgreSQL..."
+	@echo "This may take several minutes (loading ~1.5M records)..."
+	@bash scripts/setup_postgres_demo.sh
+	@echo "✅ E-commerce data loaded successfully!"
+	@echo ""
+	@echo "💡 Try some queries: make db-query"
+
+db-schema:
+	@echo "🗄️  Creating database schema..."
+	@export PGPASSWORD="${POSTGRES_PASSWORD:-postgres}"; \
+	psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} \
+		-U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres} \
+		-f sql/init/01-ecommerce-schema.sql
+	@echo "✅ Database schema created!"
+
+db-query:
+	@echo "📊 Running sample queries..."
+	@export PGPASSWORD="${POSTGRES_PASSWORD:-postgres}"; \
+	psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} \
+		-U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres} \
+		-f sql/queries/sample_queries.sql
+
+db-shell:
+	@echo "🐘 Connecting to PostgreSQL..."
+	@export PGPASSWORD="${POSTGRES_PASSWORD:-postgres}"; \
+	psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} \
+		-U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}
 
 create-buckets:
 	@echo "🪣 Creating MinIO buckets..."
@@ -186,7 +222,7 @@ clean-all:
 urls:
 	@echo "📌 Access URLs:"
 	@echo "  Streamlit ChatBot:  http://localhost:8501"
-	@echo "  FastAPI Docs:       http://localhost:8000/docs"
+	@echo "  FastAPI Docs:       http://localhost:5000/docs"
 	@echo "  Metabase:           http://localhost:3000"
 	@echo "  Airflow:            http://localhost:8081 (admin/admin)"
 	@echo "  Spark Master:       http://localhost:8080"
