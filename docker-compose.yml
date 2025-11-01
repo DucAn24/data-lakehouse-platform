@@ -54,7 +54,7 @@ x-airflow-common:
 services:
 
   kafka:
-    image: apache/kafka:4.1.0
+    image: apache/kafka:4.0.0
     container_name: kafka
     hostname: kafka
     ports:
@@ -84,9 +84,20 @@ services:
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      
+      # JVM Heap Settings for Local Development
+      - KAFKA_HEAP_OPTS=-Xms256m -Xmx512m
 
     volumes:
       - kafka-data:/var/lib/kafka/data
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     networks:
       - lakehouse-network
     healthcheck:
@@ -94,6 +105,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -165,8 +177,18 @@ services:
       KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
       VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       ENABLE_DEBEZIUM_SCRIPTING: "true"
+      # Reduce heap for local development
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
     volumes:
       - kafka-connect-data:/var/lib/kafka/connect
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 768M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     networks:
       - lakehouse-network
     depends_on:
@@ -231,6 +253,8 @@ services:
     image: postgres:16-alpine
     hostname: metastore-db
     container_name: metastore-db
+    ports:
+      - "5434:5432"
     environment:
       POSTGRES_DB: metastore
       POSTGRES_USER: hive
@@ -254,7 +278,7 @@ services:
       # Database Configuration
       DB_DRIVER: postgres
       SERVICE_NAME: metastore
-      SERVICE_OPTS: "-Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://metastore-db:5432/metastore -Djavax.jdo.option.ConnectionUserName=hive -Djavax.jdo.option.ConnectionPassword=hive123"
+      SERVICE_OPTS: "-Xmx512m -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://metastore-db:5432/metastore -Djavax.jdo.option.ConnectionUserName=hive -Djavax.jdo.option.ConnectionPassword=hive123"
       
       # S3/MinIO Configuration
       AWS_ACCESS_KEY_ID: admin
@@ -266,14 +290,22 @@ services:
       HADOOP_CONF_DIR: /opt/hive/conf
       HIVE_CONF_DIR: /opt/hive/conf
       
-      # JVM Options for S3A
-      HADOOP_OPTS: "-Dfs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem -Dfs.s3a.endpoint=http://minio:9000 -Dfs.s3a.access.key=admin -Dfs.s3a.secret.key=password123 -Dfs.s3a.path.style.access=true"
+      # JVM Options for S3A (with reduced heap)
+      HADOOP_OPTS: "-Xms128m -Xmx512m -Dfs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem -Dfs.s3a.endpoint=http://minio:9000 -Dfs.s3a.access.key=admin -Dfs.s3a.secret.key=password123 -Dfs.s3a.path.style.access=true"
     ports:
       - "9083:9083"
     volumes:
       - ./configs/hive/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
       - ./configs/hive/core-site.xml:/opt/hive/conf/core-site.xml:ro
       - ./configs/hive/log4j.properties:/opt/hive/conf/log4j.properties:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 768M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     networks:
       - lakehouse-network
     healthcheck:
@@ -283,69 +315,72 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # spark-master:
-  #   build:
-  #     context: .
-  #     dockerfile: configs/spark/spark.Dockerfile
-  #   container_name: spark-master
-  #   environment:
-  #     - SPARK_MASTER_HOST=spark-master
-  #     - SPARK_MASTER_PORT=7077
-  #     - SPARK_MASTER_WEBUI_PORT=8080
-  #   ports:
-  #     - "8080:8080"
-  #     - "7077:7077"
-  #   volumes:
-  #     - ./spark-jobs:/opt/spark/jobs
-  #     - spark-data:/opt/spark/data
-  #     - ./configs/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
-  #   command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
-  #   networks:
-  #     - lakehouse-network
+  spark-master:
+    build:
+      context: .
+      dockerfile: configs/spark/spark.Dockerfile
+    container_name: spark-master
+    environment:
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./spark-jobs:/opt/spark/jobs
+      - spark-data:/opt/spark/data
+      - ./configs/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    networks:
+      - lakehouse-network
+    restart: unless-stopped
 
-  # spark-worker-1:
-  #   build:
-  #     context: .
-  #     dockerfile: configs/spark/spark.Dockerfile
-  #   hostname: spark-worker-1
-  #   container_name: spark-worker-1
-  #   environment:
-  #     - SPARK_MASTER_URL=spark://spark-master:7077
-  #     - SPARK_WORKER_PORT=8881
-  #     - SPARK_WORKER_WEBUI_PORT=8081
-  #     - SPARK_WORKER_MEMORY=2g
-  #     - SPARK_WORKER_CORES=2
-  #   depends_on:
-  #     - spark-master
-  #   volumes:
-  #     - ./spark-jobs:/opt/spark/jobs
-  #     - spark-data:/opt/spark/data
-  #     - ./configs/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
-  #   command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
-  #   networks:
-  #     - lakehouse-network
+  spark-worker-1:
+    build:
+      context: .
+      dockerfile: configs/spark/spark.Dockerfile
+    hostname: spark-worker-1
+    container_name: spark-worker-1
+    environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_PORT=8881
+      - SPARK_WORKER_WEBUI_PORT=8081
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=2
+    depends_on:
+      - spark-master
+    volumes:
+      - ./spark-jobs:/opt/spark/jobs
+      - spark-data:/opt/spark/data
+      - ./configs/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    networks:
+      - lakehouse-network
+    restart: unless-stopped
 
-  # spark-worker-2:
-  #   build:
-  #     context: .
-  #     dockerfile: configs/spark/spark.Dockerfile
-  #   hostname: spark-worker-2
-  #   container_name: spark-worker-2
-  #   environment:
-  #     - SPARK_MASTER_URL=spark://spark-master:7077
-  #     - SPARK_WORKER_PORT=8881
-  #     - SPARK_WORKER_WEBUI_PORT=8081
-  #     - SPARK_WORKER_MEMORY=2g
-  #     - SPARK_WORKER_CORES=2
-  #   depends_on:
-  #     - spark-master
-  #   volumes:
-  #     - ./spark-jobs:/opt/spark/jobs
-  #     - spark-data:/opt/spark/data
-  #     - ./configs/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
-  #   command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
-  #   networks:
-  #     - lakehouse-network
+  spark-worker-2:
+    build:
+      context: .
+      dockerfile: configs/spark/spark.Dockerfile
+    hostname: spark-worker-2
+    container_name: spark-worker-2
+    environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_PORT=8881
+      - SPARK_WORKER_WEBUI_PORT=8081
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=2
+    depends_on:
+      - spark-master
+    volumes:
+      - ./spark-jobs:/opt/spark/jobs
+      - spark-data:/opt/spark/data
+      - ./configs/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    networks:
+      - lakehouse-network
+    restart: unless-stopped
   
   # trino-coordinator:
   #   image: trinodb/trino:475
