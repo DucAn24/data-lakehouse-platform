@@ -1,9 +1,7 @@
 FROM apache/hive:4.0.0
 
-# Download PostgreSQL JDBC driver
 USER root
 
-# Install curl first
 RUN apt-get update && \
     apt-get install -y curl && \
     rm -rf /var/lib/apt/lists/*
@@ -11,8 +9,12 @@ RUN apt-get update && \
 # Download JDBC driver
 RUN curl -L https://jdbc.postgresql.org/download/postgresql-42.7.3.jar -o /opt/hive/lib/postgresql-jdbc.jar
 
-# Switch back to hive user
+# Download AWS SDK and Hadoop AWS JARs 
+RUN curl -L https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar \
+    -o /opt/hive/lib/hadoop-aws-3.3.4.jar && \
+    curl -L https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar \
+    -o /opt/hive/lib/aws-java-sdk-bundle-1.12.262.jar
+
 USER hive
 
-# Set working directory
 WORKDIR /opt/hive
