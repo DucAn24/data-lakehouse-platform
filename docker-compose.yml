@@ -85,8 +85,8 @@ services:
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
       
-      # JVM Heap Settings for Local Development
-      - KAFKA_HEAP_OPTS=-Xms256m -Xmx512m
+      # JVM Heap Settings - Increased for better performance
+      - KAFKA_HEAP_OPTS=-Xms512m -Xmx1g
 
     volumes:
       - kafka-data:/var/lib/kafka/data
@@ -95,9 +95,6 @@ services:
         limits:
           cpus: '1.0'
           memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 256M
     networks:
       - lakehouse-network
     healthcheck:
@@ -154,7 +151,7 @@ services:
           --replication-factor 1 \
           --config cleanup.policy=compact
         
-        echo '✓ Kafka topics created successfully'
+        echo 'Kafka topics created successfully'
       "
     networks:
       - lakehouse-network
@@ -184,11 +181,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: '1.0'
           memory: 768M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
     networks:
       - lakehouse-network
     depends_on:
@@ -203,7 +197,7 @@ services:
       retries: 5
 
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
     hostname: postgres
     container_name: postgres
     ports:
@@ -250,20 +244,26 @@ services:
     restart: unless-stopped
 
   metastore-db:
-    image: postgres:16-alpine
+    image: mariadb:11.5
     hostname: metastore-db
     container_name: metastore-db
     ports:
-      - "5434:5432"
+      - "5434:3306"
     environment:
-      POSTGRES_DB: metastore
-      POSTGRES_USER: hive
-      POSTGRES_PASSWORD: hive123
+      MYSQL_ROOT_PASSWORD: hive123
+      MYSQL_DATABASE: metastore
+      MYSQL_USER: hive
+      MYSQL_PASSWORD: hive123
     volumes:
-      - metastore-db-data:/var/lib/postgresql/data
+      - metastore-db-data:/var/lib/mysql
     networks:
       - lakehouse-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   hive-metastore:
     build:
@@ -276,9 +276,9 @@ services:
       - minio
     environment:
       # Database Configuration
-      DB_DRIVER: postgres
+      DB_DRIVER: mysql
       SERVICE_NAME: metastore
-      SERVICE_OPTS: "-Xmx512m -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://metastore-db:5432/metastore -Djavax.jdo.option.ConnectionUserName=hive -Djavax.jdo.option.ConnectionPassword=hive123"
+      SERVICE_OPTS: "-Xmx512m -Djavax.jdo.option.ConnectionDriverName=org.mariadb.jdbc.Driver -Djavax.jdo.option.ConnectionURL=jdbc:mariadb://metastore-db:3306/metastore -Djavax.jdo.option.ConnectionUserName=hive -Djavax.jdo.option.ConnectionPassword=hive123"
       
       # S3/MinIO Configuration
       AWS_ACCESS_KEY_ID: admin
@@ -301,11 +301,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 768M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '1.0'
+          memory: 1G
     networks:
       - lakehouse-network
     healthcheck:
@@ -382,40 +379,22 @@ services:
       - lakehouse-network
     restart: unless-stopped
   
-  # trino-coordinator:
-  #   image: trinodb/trino:475
-  #   hostname: trino-coordinator
-  #   container_name: trino-coordinator
-  #   ports:
-  #     - "8083:8080"  
-  #   environment:
-  #     - TRINO_ENVIRONMENT=production
-  #   volumes:
-  #     - ./configs/trino/coordinator-config.properties:/etc/trino/config.properties:ro
-  #     - ./configs/trino/coordinator-node.properties:/etc/trino/node.properties:ro
-  #     - ./configs/trino/jvm.config:/etc/trino/jvm.config:ro
-  #     - ./configs/trino/catalog:/etc/trino/catalog:ro
-  #   networks:
-  #     - lakehouse-network
-  #   depends_on:
-  #     - hive-metastore
-  #   restart: unless-stopped
-
-  # trino-worker:
-  #   image: trinodb/trino:475
-  #   hostname: trino-worker
-  #   environment:
-  #     - TRINO_ENVIRONMENT=production
-  #   volumes:
-  #     - ./configs/trino/worker-config.properties:/etc/trino/config.properties:ro
-  #     - ./configs/trino/worker-node.properties:/etc/trino/node.properties:ro
-  #     - ./configs/trino/jvm.config:/etc/trino/jvm.config:ro
-  #     - ./configs/trino/catalog:/etc/trino/catalog:ro
-  #   networks:
-  #     - lakehouse-network
-  #   depends_on:
-  #     - trino-coordinator
-  #   restart: unless-stopped
+  trino:
+    image: trinodb/trino:475
+    hostname: trino
+    container_name: trino
+    ports:
+      - "8083:8080"  
+    volumes:
+      - ./configs/trino/coordinator-config.properties:/etc/trino/config.properties:ro
+      - ./configs/trino/coordinator-node.properties:/etc/trino/node.properties:ro
+      - ./configs/trino/jvm.config:/etc/trino/jvm.config:ro
+      - ./configs/trino/catalog:/etc/trino/catalog:ro
+    networks:
+      - lakehouse-network
+    depends_on:
+      - hive-metastore
+    restart: unless-stopped
 
   postgres-data-loader:
     build:

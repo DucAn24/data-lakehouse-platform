@@ -6,8 +6,9 @@ RUN apt-get update && \
     apt-get install -y curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Download JDBC driver
-RUN curl -L https://jdbc.postgresql.org/download/postgresql-42.7.3.jar -o /opt/hive/lib/postgresql-jdbc.jar
+# Download MariaDB JDBC driver
+RUN curl -L https://repo1.maven.org/maven2/org/mariadb/jdbc/mariadb-java-client/3.3.2/mariadb-java-client-3.3.2.jar \
+    -o /opt/hive/lib/mariadb-java-client.jar
 
 # Download AWS SDK and Hadoop AWS JARs 
 RUN curl -L https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar \
