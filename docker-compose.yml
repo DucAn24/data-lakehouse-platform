@@ -415,7 +415,44 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: tail -f /dev/null
+    command: bash -c "sleep 5 && python /app/scripts/load_data_to_postgres.py"
+
+  jupyter:
+    build:
+      context: ./configs/jupyter
+      dockerfile: jupyter.Dockerfile
+    container_name: jupyter-notebook
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - GRANT_SUDO=yes
+      # Spark Configuration
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_DRIVER_MEMORY=1g
+      - SPARK_EXECUTOR_MEMORY=1g
+      # MinIO/S3 Configuration
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password123
+      - S3_ENDPOINT=http://minio:9000
+      # Hive Metastore
+      - HIVE_METASTORE_URIS=thrift://hive-metastore:9083
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./spark-jobs:/home/jovyan/spark-jobs
+      - ./data:/home/jovyan/data
+    networks:
+      - lakehouse-network
+    depends_on:
+      - spark-master
+      - hive-metastore
+      - minio
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/api"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # chatbot-api:
   #   build:
@@ -461,61 +498,61 @@ services:
   #     start_period: 60s
   #   restart: unless-stopped
 
-  # metabase:
-  #   image: metabase/metabase:v0.56.10
-  #   hostname: metabase
-  #   container_name: metabase
-  #   environment:
-  #     # Database Configuration
-  #     MB_DB_TYPE: postgres
-  #     MB_DB_DBNAME: metabase
-  #     MB_DB_PORT: 5432
-  #     MB_DB_USER: metabase
-  #     MB_DB_PASS: metabase
-  #     MB_DB_HOST: metabase-db
+  metabase:
+    image: metabase/metabase:v0.56.10
+    hostname: metabase
+    container_name: metabase
+    environment:
+      # Database Configuration
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: metabase
+      MB_DB_PASS: metabase
+      MB_DB_HOST: metabase-db
       
-  #     # Metabase Settings
-  #     MB_JETTY_HOST: 0.0.0.0
-  #     MB_JETTY_PORT: 3000
-  #     MB_PASSWORD_COMPLEXITY: normal
-  #     MB_PASSWORD_LENGTH: 6
-  #   ports:
-  #     - "3000:3000"
-  #   volumes:
-  #     - metabase-data:/metabase-data
-  #   networks:
-  #     - lakehouse-network
-  #   depends_on:
-  #     metabase-db:
-  #       condition: service_healthy
-  #     trino-coordinator:
-  #       condition: service_started
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 120s
-  #   restart: unless-stopped
+      # Metabase Settings
+      MB_JETTY_HOST: 0.0.0.0
+      MB_JETTY_PORT: 3000
+      MB_PASSWORD_COMPLEXITY: normal
+      MB_PASSWORD_LENGTH: 6
+    ports:
+      - "3000:3000"
+    volumes:
+      - metabase-data:/metabase-data
+    networks:
+      - lakehouse-network
+    depends_on:
+      metabase-db:
+        condition: service_healthy
+      trino-coordinator:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
 
-  # metabase-db:
-  #   image: postgres:16-alpine
-  #   hostname: metabase-db
-  #   container_name: metabase-db
-  #   environment:
-  #     POSTGRES_DB: metabase
-  #     POSTGRES_USER: metabase
-  #     POSTGRES_PASSWORD: metabase
-  #   volumes:
-  #     - metabase-db-data:/var/lib/postgresql/data
-  #   networks:
-  #     - lakehouse-network
-  #   healthcheck:
-  #     test: ["CMD", "pg_isready", "-U", "metabase"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #   restart: unless-stopped
+  metabase-db:
+    image: postgres:16-alpine
+    hostname: metabase-db
+    container_name: metabase-db
+    environment:
+      POSTGRES_DB: metabase
+      POSTGRES_USER: metabase
+      POSTGRES_PASSWORD: metabase
+    volumes:
+      - metabase-db-data:/var/lib/postgresql/data
+    networks:
+      - lakehouse-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "metabase"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   # airflow-dag-processor:
   #   <<: *airflow-common

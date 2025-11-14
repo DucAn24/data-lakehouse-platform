@@ -1,0 +1,9 @@
+delta-spark
+pandas
+matplotlib
+seaborn
+plotly
+
+# AWS/S3 Support 
+boto3
+s3fs
